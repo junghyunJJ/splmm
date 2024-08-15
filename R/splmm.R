@@ -196,14 +196,7 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   nonsel_celltype_kernel <- celltype_prop[, !colnames(celltype_prop) %in% sel_celltype, drop = FALSE] %>% cal_linear_kernel()
 
   n_sample <- ncol(exp)
-  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  # NOTE!!!!! we need to update the exp data to analyze the gene one at a time.
-  browser()
-
-  # expression: ".dat"
-  save_exp <- cbind(seq(1, n_sample), seq(1, n_sample), exp[sel_gene, ])
-  fwrite(as.data.table(save_exp), "data.dat", sep = "\t", col.names = FALSE)
-
+  
   # dummy fam file: ".fam"
   save_fam <- cbind(seq(1, n_sample), seq(1, n_sample), rep(0, n_sample), rep(0, n_sample), -9, -9)
   fwrite(as.data.table(save_fam), "data.fam", sep = "\t", col.names = FALSE)
@@ -215,7 +208,6 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   fwrite(make_longform(celltype_kernel), "kernel.mat", sep = "\t", col.names = FALSE)
   fwrite(make_longform(sel_celltype_kernel), "sel_kernel.mat", sep = "\t", col.names = FALSE)
   fwrite(make_longform(nonsel_celltype_kernel), "nonsel_kernel.mat", sep = "\t", col.names = FALSE)
-
 
   ###############################################################
   ### 2. Compute kernel matrix Q ################################
@@ -232,21 +224,12 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   cat("[", format(Sys.time()), "]", " - calculate Q matrix (sel celltype x nonsel celltype)", sep = "")
   sel_nonsel_mat_Q <- cal_Q(sel_celltype_kernel, nonsel_celltype_kernel)
   fwrite(make_longform(sel_nonsel_mat_Q), "sel_nonsel.matmat", sep = "\t", col.names = FALSE)
-  # browser()
-
-  ################################################################
-  #### 3. RUN CORE greml #########################################
-  ################################################################
-
+  
   # 3-0. run greml (null)
   sink("null_greml.matlist")
   cat("kernel.dist", "\n")
   cat("kernel.mat", "\n")
   sink()
-
-  cat("[", format(Sys.time()), "]", " - Run GREML\n", sep = "")
-  system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg null_greml.matlist -d data.dat -mod 1 -thread {nthread} -out null_greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
-
 
   # 3-1. run greml
   sink("greml.matlist")
@@ -254,10 +237,6 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   cat("sel_kernel.mat", "\n")
   cat("nonsel_kernel.mat", "\n")
   sink()
-
-  cat("[", format(Sys.time()), "]", " - Run GREML\n", sep = "")
-  system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg greml.matlist -d data.dat -mod 1 -thread {nthread} -out greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
-
 
   # 3-2. run core greml
   sink("coregreml.matlist")
@@ -268,96 +247,114 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   cat("dist_nonsel.matmat", "\n")
   cat("sel_nonsel.matmat", "\n")
   sink()
-
-  cat("[", format(Sys.time()), "]", " - Run CORE GREML\n", sep = "")
-  system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg coregreml.matlist -d data.dat -mod 1 -thread {nthread} -out coregreml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
-
-
-  # 3-3. summary variance component
-  system("grep V null_greml.out > vc_null_greml")
-  vc_null_greml <- fread("vc_null_greml")
-  vc_null_greml[, 1] <- c("v_e", "v_dist", "v_celltype")
-  colnames(vc_null_greml) <- c("type", "variance", "SE")
-  # res_greml <- cbind(type = "greml", vc_greml)
-
-  system("grep V greml.out > vc_greml")
-  vc_greml <- fread("vc_greml")
-  vc_greml[, 1] <- c("v_e", "v_dist", "v_selCelltype", "v_nonselCelltype")
-  colnames(vc_greml) <- c("type", "variance", "SE")
-  # res_greml <- cbind(type = "greml", vc_greml)
-
-  system("grep V coregreml.out > vc_coregreml")
-  vc_coregreml <- fread("vc_coregreml")
-  vc_coregreml[, 1] <- c("ve", "v_dist", "v_selCelltype", "v_nonselCelltype", "v_distXselCelltype", "v_distXnonselCelltype", "v_selCelltypeXnonselCelltype")
-  colnames(vc_coregreml) <- c("type", "variance", "SE")
-  # res_coregreml <- cbind(type = "coregreml", vc_coregreml)
-
-  # # 3-4. Likelihood-ratio test
-  # cat("[", format(Sys.time()), "]", " - Run Likelihood-ratio test\n", sep = "")
-
-  # raw_ll_greml <- system("grep LKH greml.out", intern = TRUE)
-  # ll_greml <- sub("LKH", "", raw_ll_greml) %>% trimws() %>% as.numeric()
-
-  # raw_ll_coregreml <- system("grep LKH coregreml.out", intern = TRUE)
-  # ll_coregreml <- sub("LKH", "", raw_ll_coregreml) %>% trimws() %>% as.numeric()
-
-  # diff_ll <- (ll_greml - ll_coregreml)
-  # res_lrt <- pchisq(-2 * diff_ll, df = 1, lower.tail = FALSE)
-
-  # res_ll <- data.frame(ll_greml = ll_greml, ll_coregreml = ll_coregreml, lrt = diff_ll, pvalue = res_lrt)
-
-
-  # 4-4. cal heritability (h2)
-  cat("[", format(Sys.time()), "]", " - Calculate heritability\n", sep = "")
-  if (file.exists("coregreml.do")) {
-    file.remove("coregreml.do")
-  }
-  system("grep -vwE '(LKH|h2)' coregreml.out > coregreml.out2")
-
-  sink("coregreml.do")
-  cat("coregreml.out2", "\n") # line 1: specify the file with parameter estimates
-  cat(7, "\n") # line 2: tot. # of variance & covariance components in the file
-  cat("R 2 1 3 4", "\n") # #2 / (#1+#2+#3+#4)
-  cat("R 3 1 2 4", "\n") # #3 / (#1+#2+#3+#4)
-  cat("R 4 1 2 3", "\n") # #4 / (#1+#2+#3+#4)
-  cat("C 5 2 3", "\n")   # #5 / sqrt(#2 * #3)
-  cat("C 6 4 2", "\n")   # #6 / sqrt(#4 * #2)
-  cat("C 7 4 3", "\n")   # #7 / sqrt(#4 * #3)
-  sink()
-
-  system(str_glue("{dir_current}/{path_mtg} -delta2 coregreml.do > res"))
-  raw_res <- fread("res", skip = 6, fill = TRUE) %>% as.data.frame()
   
-  raw_res_h2 <- raw_res[grep("Ratio", raw_res[, 1]), c(2, 4, 6)]
-  colnames(raw_res_h2) <- c("h2", "se", "pvalue")
-  res_h2 <- data.frame(
-    type = c("dist", "selCelltype", "nonselCelltype"),
-    h2 = as.numeric(raw_res_h2$h2),
-    se = as.numeric(raw_res_h2$se),
-    pvalue = as.numeric(raw_res_h2$pvalue)
-  )
-  
-  raw_res_cor <- raw_res[grep("Cor", raw_res[, 1]), c(3, 5, 7)]
-  colnames(raw_res_cor) <- c("cor", "se", "pvalue")
-  res_cor <- data.frame(
-    type = c("distXselCelltype", "distXnonselCelltype", "selCelltypeXnonselCelltype"),
-    cor = as.numeric(raw_res_cor$cor),
-    se = as.numeric(raw_res_cor$se),
-    pvalue = as.numeric(raw_res_cor$pvalue)
-  )
-  
-  final_res <- list(
-    nullgreml = vc_null_greml,
-    greml = vc_greml,
-    coregrem = vc_coregreml,
-    # lrt = res_ll,
-    h2 = res_h2,
-    cor = res_cor
-  )
+  final_res <- pbmcapply::pbmclapply(rownames(exp), function(sel_gene) {
+    # expression: ".dat"
+    save_exp <- cbind(seq(1, n_sample), seq(1, n_sample), exp[sel_gene, ])
+    fwrite(as.data.table(save_exp), str_glue("{sel_gene}_data.dat"), sep = "\t", col.names = FALSE)
 
-  cat("[", format(Sys.time()), "]", " - End\n\n", sep = "")
-  setwd(dir_current)
+    ################################################################
+    #### 3. RUN CORE greml #########################################
+    ################################################################
 
+    # 3-0. run greml (null)
+    cat("[", format(Sys.time()), "]", " - Run GREML\n", sep = "")
+    system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg null_greml.matlist -d {sel_gene}_data.dat -mod 1 -thread 1 -out {sel_gene}_null_greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
+
+
+    # 3-1. run greml
+    cat("[", format(Sys.time()), "]", " - Run GREML\n", sep = "")
+    system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg greml.matlist -d {sel_gene}_data.dat -mod 1 -thread 1 -out {sel_gene}_greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
+
+
+    # 3-2. run core greml
+    cat("[", format(Sys.time()), "]", " - Run CORE GREML\n", sep = "")
+    system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg coregreml.matlist -d {sel_gene}_data.dat -mod 1 -thread 1 -out {sel_gene}_coregreml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
+
+
+    # 3-3. summary variance component
+    system(str_glue("grep V {sel_gene}_null_greml.out > {sel_gene}_vc_null_greml"))
+    res_null_greml <- fread("{sel_gene}_vc_null_greml")
+    res_null_greml[, 1] <- c("v_e", "v_dist", "v_celltype")
+    colnames(res_null_greml) <- c("type", "variance", "SE")
+
+    system(str_glue("grep V {sel_gene}_greml.out > {sel_gene}_vc_greml"))
+    res_greml <- fread("{sel_gene}_vc_greml")
+    res_greml[, 1] <- c("v_e", "v_dist", "v_selCelltype", "v_nonselCelltype")
+    colnames(res_greml) <- c("type", "variance", "SE")
+
+    system(str_glue("grep V {sel_gene}_coregreml.out > {sel_gene}_vc_coregreml"))
+    res_coregreml <- fread("{sel_gene}_vc_coregreml")
+    res_coregreml[, 1] <- c("ve", "v_dist", "v_selCelltype", "v_nonselCelltype", "v_distXselCelltype", "v_distXnonselCelltype", "v_selCelltypeXnonselCelltype")
+    colnames(res_coregreml) <- c("type", "variance", "SE")
+
+    # # 3-4. Likelihood-ratio test
+    # cat("[", format(Sys.time()), "]", " - Run Likelihood-ratio test\n", sep = "")
+
+    # raw_ll_greml <- system("grep LKH greml.out", intern = TRUE)
+    # ll_greml <- sub("LKH", "", raw_ll_greml) %>% trimws() %>% as.numeric()
+
+    # raw_ll_coregreml <- system("grep LKH coregreml.out", intern = TRUE)
+    # ll_coregreml <- sub("LKH", "", raw_ll_coregreml) %>% trimws() %>% as.numeric()
+
+    # diff_ll <- (ll_greml - ll_coregreml)
+    # res_lrt <- pchisq(-2 * diff_ll, df = 1, lower.tail = FALSE)
+
+    # res_ll <- data.frame(ll_greml = ll_greml, ll_coregreml = ll_coregreml, lrt = diff_ll, pvalue = res_lrt)
+
+
+    # 4-4. cal heritability (h2)
+    cat("[", format(Sys.time()), "]", " - Calculate heritability\n", sep = "")
+    if (file.exists(str_glue("{sel_gene}_coregreml.do"))) {
+      file.remove(str_glue("{sel_gene}_coregreml.do"))
+    }
+    system(str_glue("grep -vwE '(LKH|h2)' {sel_gene}_coregreml.out > {sel_gene}_coregreml.out2"))
+
+    sink(str_glue("{sel_gene}_coregreml.do"))
+    cat(str_glue("{sel_gene}_coregreml.out2", "\n")) # line 1: specify the file with parameter estimates
+    cat(7, "\n") # line 2: tot. # of variance & covariance components in the file
+    cat("R 2 1 3 4", "\n") # #2 / (#1+#2+#3+#4)
+    cat("R 3 1 2 4", "\n") # #3 / (#1+#2+#3+#4)
+    cat("R 4 1 2 3", "\n") # #4 / (#1+#2+#3+#4)
+    cat("C 5 2 3", "\n")   # #5 / sqrt(#2 * #3)
+    cat("C 6 4 2", "\n")   # #6 / sqrt(#4 * #2)
+    cat("C 7 4 3", "\n")   # #7 / sqrt(#4 * #3)
+    sink()
+
+    system(str_glue("{dir_current}/{path_mtg} -delta2 {sel_gene}_coregreml.do > res"))
+    raw_res <- fread("res", skip = 6, fill = TRUE) %>% as.data.frame()
+    
+    raw_res_h2 <- raw_res[grep("Ratio", raw_res[, 1]), c(2, 4, 6)]
+    colnames(raw_res_h2) <- c("h2", "se", "pvalue")
+    res_h2 <- data.frame(
+      type = c("dist", "selCelltype", "nonselCelltype"),
+      h2 = as.numeric(raw_res_h2$h2),
+      se = as.numeric(raw_res_h2$se),
+      pvalue = as.numeric(raw_res_h2$pvalue)
+    )
+    
+    raw_res_cor <- raw_res[grep("Cor", raw_res[, 1]), c(3, 5, 7)]
+    colnames(raw_res_cor) <- c("cor", "se", "pvalue")
+    res_cor <- data.frame(
+      type = c("distXselCelltype", "distXnonselCelltype", "selCelltypeXnonselCelltype"),
+      cor = as.numeric(raw_res_cor$cor),
+      se = as.numeric(raw_res_cor$se),
+      pvalue = as.numeric(raw_res_cor$pvalue)
+    )
+      
+    cat("[", format(Sys.time()), "]", " - End\n\n", sep = "")
+    setwd(dir_current) 
+    
+    list(
+      nullgreml = res_null_greml,
+      greml = res_greml,
+      coregrem = res_coregreml,
+      # lrt = res_ll,
+      h2 = res_h2,
+      cor = res_cor
+    )
+  }, mc.cores = nthread)
+  
   if (remove_tmpdir) {
     unlink(str_glue("{tmpdir}"), recursive = TRUE)
   }
