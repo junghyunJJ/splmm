@@ -2,6 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-data/
 tmp.RData
 run_exp.R
+tmp/

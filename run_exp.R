@@ -123,15 +123,19 @@ library(jjutil)
 ################################################################
 #### 2. run ####################################################
 ################################################################
-load("tmp.RData")
+# load("tmp.RData")
+# saveRDS(exp, "data/example_exp.rds")
+# saveRDS(location, "data/example_location.rds")
+# saveRDS(celltype_mat, "data/example_celltype_mat.rds")
+
+exp <- readRDS("data/example_exp.rds")
+location <- readRDS("data/example_location.rds")
+celltype_mat <- readRDS("data/example_celltype_mat.rds")
+
 source("R/splmm.R")
 sel_sample <- "kidneycancer"
 sel_celltype <- "RCC"
 
-# distance_kernel <- cal_spatial_kernel(exp, location)
-
-# unlist(exp[j, ])
-# j <- 1
 splmm(exp = exp, coord = location, celltype_prop = celltype_mat, 
   sel_celltype = "RCC", sel_gene = "HES4",
   path_mtg = "./mtg2",
