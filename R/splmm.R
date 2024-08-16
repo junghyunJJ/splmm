@@ -143,7 +143,7 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   cat("[", format(Sys.time()), "]", " - Calculate celltype kernel (sel celltype)\n", sep = "")
   sel_celltype_kernel <- celltype_prop[, colnames(celltype_prop) %in% sel_celltype, drop = FALSE] %>% cal_linear_kernel()
   
-  cat("[", format(Sys.time()), "]", " - Calculate spatial kernel (nonsel celltype)\n", sep = "")
+  cat("[", format(Sys.time()), "]", " - Calculate celltype kernel (nonsel celltype)\n", sep = "")
   nonsel_celltype_kernel <- celltype_prop[, !colnames(celltype_prop) %in% sel_celltype, drop = FALSE] %>% cal_linear_kernel()
 
   n_sample <- ncol(exp)
@@ -214,17 +214,13 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
     cat("[", format(Sys.time()), "]", " - Run GREML (null)\n", sep = "")
     system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg null_greml.matlist -d {sel}_data.dat -mod 1 -thread 1 -out {sel}_null_greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
 
-
     # 3-1. run greml
     cat("[", format(Sys.time()), "]", " - Run GREML\n", sep = "")
     system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg greml.matlist -d {sel}_data.dat -mod 1 -thread 1 -out {sel}_greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
 
-
     # 3-2. run core greml
     cat("[", format(Sys.time()), "]", " - Run CORE GREML\n", sep = "")
     system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg coregreml.matlist -d {sel}_data.dat -mod 1 -thread 1 -out {sel}_coregreml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
-
-    #browser()
 
     # 3-3. summary variance component
     system(str_glue("grep V {sel}_null_greml.out > {sel}_vc_null_greml"))
@@ -256,8 +252,8 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
 
     # res_ll <- data.frame(ll_greml = ll_greml, ll_coregreml = ll_coregreml, lrt = diff_ll, pvalue = res_lrt)
 
-
-    # 4-4. cal heritability (h2)
+    # NOTE!!! we need to update the name of the analysis heritability -> ...?
+    # 4-4. cal heritability
     cat("[", format(Sys.time()), "]", " - Calculate heritability\n", sep = "")
     if (file.exists(str_glue("{sel}_coregreml.do"))) {
       file.remove(str_glue("{sel}_coregreml.do"))
@@ -310,11 +306,12 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   
   names(final_res) <- rownames(exp)
   
-  # browser()
   setwd(dir_current) 
 
   if (remove_tmpdir) {
     unlink(tmpdir, recursive = TRUE)
   }
+  # browser()
+
   return(final_res)
 }

@@ -137,6 +137,8 @@ library(jjutil)
 exp <- readRDS("data/example_exp.rds")
 location <- readRDS("data/example_location.rds")
 celltype_mat <- readRDS("data/example_celltype_mat.rds")
+exp %>% dim
+
 
 source("R/splmm.R")
 sel_sample <- "kidneycancer"
@@ -145,10 +147,12 @@ exp %>% dim
 
 
 res <- splmm(exp = exp, coord = location, celltype_prop = celltype_mat, 
-  sel_celltype = "RCC", sel_gene = rownames(exp)[1:10],
+  sel_celltype = "RCC", 
+  sel_gene = rownames(exp)[1],
+  # sel_gene = c("FABP7", "GC", "SLC13A1", "CXCL9", "PAX8", "RPL28"),
   path_mtg = "./mtg2",
   tmpdir = str_glue("tmp_{sel_sample}"),
-  nthread = 10, verbose = 1, remove_tmpdir = TRUE
+  nthread = 1, verbose = 2, remove_tmpdir = FALSE
 )
 
 getwd()
