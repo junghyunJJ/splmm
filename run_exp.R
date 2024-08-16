@@ -128,6 +128,12 @@ library(jjutil)
 # saveRDS(location, "data/example_location.rds")
 # saveRDS(celltype_mat, "data/example_celltype_mat.rds")
 
+rm(list = ls())
+
+library(tidyverse)
+library(data.table)
+library(jjutil)
+
 exp <- readRDS("data/example_exp.rds")
 location <- readRDS("data/example_location.rds")
 celltype_mat <- readRDS("data/example_celltype_mat.rds")
@@ -140,7 +146,7 @@ splmm(exp = exp, coord = location, celltype_prop = celltype_mat,
   sel_celltype = "RCC", sel_gene = "HES4",
   path_mtg = "./mtg2",
   tmpdir = str_glue("tmp/tmp_{sel_sample}"),
-  nthread = 1, verbose = 2, remove_tmpdir = TRUE
+  nthread = 1, verbose = 1, remove_tmpdir = TRUE
 )
 
 
