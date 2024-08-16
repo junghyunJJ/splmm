@@ -1,8 +1,8 @@
-rm(list = ls())
+# rm(list = ls())
 
-library(tidyverse)
-library(data.table)
-library(jjutil)
+# library(tidyverse)
+# library(data.table)
+# library(jjutil)
 
 # # c("1-1", "2-3", "2-5", "2-8", "18-64", "T4857")
 # # # control	1-1
@@ -141,14 +141,17 @@ celltype_mat <- readRDS("data/example_celltype_mat.rds")
 source("R/splmm.R")
 sel_sample <- "kidneycancer"
 sel_celltype <- "RCC"
+exp %>% dim
 
-splmm(exp = exp, coord = location, celltype_prop = celltype_mat, 
-  sel_celltype = "RCC", sel_gene = "HES4",
+
+res <- splmm(exp = exp, coord = location, celltype_prop = celltype_mat, 
+  sel_celltype = "RCC", sel_gene = rownames(exp)[1:10],
   path_mtg = "./mtg2",
-  tmpdir = str_glue("tmp/tmp_{sel_sample}"),
-  nthread = 1, verbose = 1, remove_tmpdir = TRUE
+  tmpdir = str_glue("tmp_{sel_sample}"),
+  nthread = 10, verbose = 1, remove_tmpdir = TRUE
 )
 
+getwd()
 
 ################################################################
 #### 3. old run ################################################

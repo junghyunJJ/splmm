@@ -199,7 +199,7 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   cat("sel_nonsel.matmat", "\n")
   sink()
 
-  exp <- exp[sel_gene, ,drop = FALSE]
+  exp <- exp[sel_gene, , drop = FALSE]
 
   final_res <- pbmcapply::pbmclapply(rownames(exp), function(sel) {
     # expression: ".dat"
@@ -211,7 +211,7 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
     ################################################################
 
     # 3-0. run greml (null)
-    cat("[", format(Sys.time()), "]", " - Run GREML\n", sep = "")
+    cat("[", format(Sys.time()), "]", " - Run GREML (null)\n", sep = "")
     system(str_glue("{dir_current}/{path_mtg} -p data.fam -mg null_greml.matlist -d {sel}_data.dat -mod 1 -thread 1 -out {sel}_null_greml.out"), ignore.stdout = SYS_PRINT, ignore.stderr = SYS_PRINT)
 
 
@@ -275,8 +275,8 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
     cat("C 7 4 3", "\n")   # #7 / sqrt(#4 * #3)
     sink()
 
-    system(str_glue("{dir_current}/{path_mtg} -delta2 {sel}_coregreml.do > res"))
-    raw_res <- fread("res", skip = 6, fill = TRUE) %>% as.data.frame()
+    system(str_glue("{dir_current}/{path_mtg} -delta2 {sel}_coregreml.do > {sel}_res"))
+    raw_res <- fread(str_glue("{sel}_res"), skip = 6, fill = TRUE) %>% as.data.frame()
     
     raw_res_h2 <- raw_res[grep("Ratio", raw_res[, 1]), c(2, 4, 6)]
     colnames(raw_res_h2) <- c("h2", "se", "pvalue")
@@ -297,7 +297,6 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
     )
       
     cat("[", format(Sys.time()), "]", " - End\n\n", sep = "")
-    setwd(dir_current) 
     
     list(
       nullgreml = res_null_greml,
@@ -308,9 +307,11 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
       cor = res_cor
     )
   }, mc.cores = nthread)
-  
+  # browser()
+  setwd(dir_current) 
+
   if (remove_tmpdir) {
-    unlink(str_glue("{tmpdir}"), recursive = TRUE)
+    unlink(tmpdir, recursive = TRUE)
   }
 
   return(final_res)
