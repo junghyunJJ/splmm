@@ -307,12 +307,14 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
       cor = res_cor
     )
   }, mc.cores = nthread)
+  
+  names(final_res) <- rownames(exp)
+  
   # browser()
   setwd(dir_current) 
 
   if (remove_tmpdir) {
     unlink(tmpdir, recursive = TRUE)
   }
-
   return(final_res)
 }
