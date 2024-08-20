@@ -28,46 +28,6 @@ cal_linear_kernel <- function(dat) {
 }
 
 
-# NOTE!!!! We need to update the function
-cal_spatial_kernel <- function(normalized_expr, coord, kerneltype = "gaussian", bandwidthtype = "Silverman", bandwidth.set.by.user = NULL, sparseKernel = FALSE, sparseKernel_tol = 1e-20, sparseKernel_ncore = 1) {
-  # cal spatial Kernel using SpatialPCA r package
-  # https://lulushang.org/SpatialPCA_Tutorial/slideseq.html
-
-  # normalized_expr: g x n (we used SCTransform)
-  # coord: n x 2 (i.e., x and y)
-
-  # The type of bandwidth to be used in Gaussian kernel,
-  #   1. "SJ" for Sheather & Jones (1991) method (usually used in small size datasets),
-  #   2. "Silverman" for Silverman's ‘rule of thumb’ method (1986)(usually used in large size datasets).
-
-  # scale expr data to calculate "bandwidth"
-  expr <- as.matrix(as.data.frame(t(scale(t(normalized_expr)))))
-
-  if (is.null(bandwidth.set.by.user)) {
-    bandwidth <- SpatialPCA::bandwidth_select(expr, method = bandwidthtype)
-    cat("bandwidth: ", bandwidth, "\n", sep = "")
-
-  } else {
-    bandwidth <- bandwidth.set.by.user
-    cat("bandwidth by user: ", bandwidth, "\n", sep = "")
-  }
-
-  # scale coordinate data
-  location_normalized <- scale(coord)
-
-  if (sparseKernel == FALSE) {
-    kernelmat <- SpatialPCA::kernel_build(kerneltype = kerneltype, location = location_normalized, bandwidth = bandwidth)
-  } else if (sparseKernel == TRUE) {
-    kernelmat <- SpatialPCA::kernel_build_sparse(
-      kerneltype = kerneltype,
-      location = location_normalized, bandwidth = bandwidth,
-      tol = sparseKernel_tol, ncores = sparseKernel_ncore
-    )
-  }
-  return(kernelmat)
-}
-
-
 make_longform <- function(K) {
   n_sample <- nrow(K)
   rownames(K) <- seq(1, n_sample)
@@ -113,7 +73,7 @@ cal_Q <- function(K, A) {
 }
 
 
-splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NULL, path_mtg = "./path_mtg", tmpdir = "./tmp", nthread = 1, verbose = 1, remove_tmpdir = TRUE) {
+splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NULL, bandwidthtype = "MLCV", path_mtg = "./path_mtg", tmpdir = "./tmp", nthread = 1, verbose = 1, remove_tmpdir = TRUE) {
   cat("[", format(Sys.time()), "]", " - Start\n", sep = "")
 
   if (!dir.exists(tmpdir)) {
@@ -135,7 +95,7 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   ################################################################
 
   cat("[", format(Sys.time()), "]", " - Calculate spatial kernel / ", sep = "")
-  distance_kernel <- cal_spatial_kernel(exp, coord)
+  distance_kernel <- cal_spatial_kernel(exp, coord, bandwidthtype = bandwidthtype, nthread = nthread)
 
   cat("[", format(Sys.time()), "]", " - Calculate celltype kernel (full)\n", sep = "")
   celltype_kernel <- celltype_prop %>% cal_linear_kernel()
@@ -311,7 +271,6 @@ splmm <- function(exp, coord, celltype_prop, sel_celltype = NULL, sel_gene = NUL
   if (remove_tmpdir) {
     unlink(tmpdir, recursive = TRUE)
   }
-  # browser()
 
   return(final_res)
 }

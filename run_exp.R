@@ -141,6 +141,9 @@ exp %>% dim
 
 
 source("R/splmm.R")
+source("R/kernel.R")
+source("R/utils.R")
+
 sel_sample <- "kidneycancer"
 sel_celltype <- "RCC"
 exp %>% dim
@@ -150,9 +153,10 @@ res <- splmm(exp = exp, coord = location, celltype_prop = celltype_mat,
   sel_celltype = "RCC", 
   sel_gene = rownames(exp)[1],
   # sel_gene = c("FABP7", "GC", "SLC13A1", "CXCL9", "PAX8", "RPL28"),
+  bandwidthtype = "Scott",
   path_mtg = "./mtg2",
   tmpdir = str_glue("tmp_{sel_sample}"),
-  nthread = 1, verbose = 2, remove_tmpdir = FALSE
+  nthread = 20, verbose = 1, remove_tmpdir = FALSE
 )
 
 getwd()
