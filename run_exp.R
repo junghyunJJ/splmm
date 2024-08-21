@@ -129,6 +129,7 @@
 # saveRDS(celltype_mat, "data/example_celltype_mat.rds")
 
 rm(list = ls())
+.vsc.attach()
 
 library(tidyverse)
 library(data.table)
@@ -148,7 +149,7 @@ sel_sample <- "kidneycancer"
 sel_celltype <- "RCC"
 exp %>% dim
 
-
+# run spot level
 res <- splmm(exp = exp, coord = location, celltype_prop = celltype_mat, 
   sel_celltype = "RCC", 
   sel_gene = rownames(exp)[1],
@@ -161,32 +162,37 @@ res <- splmm(exp = exp, coord = location, celltype_prop = celltype_mat,
 
 getwd()
 
-################################################################
-#### 3. old run ################################################
-################################################################
+n_celltype <- ncol(celltype_mat)
+celltype_mat2 <- apply(celltype_mat, 1, function(d) {
+  dd <- rep(0, n_celltype)
+  dd[which.max(d)] <- 1
+  dd
+}) %>% t
+colnames(celltype_mat2) <- colnames(celltype_mat)
+celltype_mat2 %>% head
+
+# run single cell level
+res <- splmm(
+  exp = exp, coord = location, celltype_prop = celltype_mat2,
+  sel_celltype = "RCC",
+  sel_gene = rownames(exp)[1],
+  # sel_gene = c("FABP7", "GC", "SLC13A1", "CXCL9", "PAX8", "RPL28"),
+  bandwidthtype = "Scott",
+  path_mtg = "./mtg2",
+  tmpdir = str_glue("tmp_{sel_sample}"),
+  nthread = 20, verbose = 1, remove_tmpdir = FALSE
+)
+res
+
+
+# check the celltype_kernel
+celltype_kernel <- celltype_mat2 %>% cal_linear_kernel()
+celltype_kernel %>% h
+apply(std(celltype_mat2), 2, mean)
+apply(std(celltype_mat2), 2, sd)
+
 
 celltype_kernel <- celltype_mat %>% cal_linear_kernel()
-
-sel_celltype_kernel <- celltype_mat[, colnames(celltype_mat) %in% sel_celltype, drop = FALSE] %>% cal_linear_kernel()
-nonsel_celltype_kernel <- celltype_mat[, !colnames(celltype_mat) %in% sel_celltype, drop = FALSE] %>% cal_linear_kernel()
-
-# j <- 11
-# splmm(unlist(exp[j, ]), distance_kernel, celltype_kernel,
-#   path_mtg = "./mtg2",
-#   tmpdir = str_glue("tmp/tmp_{sel_sample}_{j}"),
-#   nthread = 1, verbose = 1, remove_tmpdir = TRUE
-# )
-
-# j <- 1
-# splmm(unlist(exp[j, ]), distance_kernel, sel_celltype_kernel,
-#   path_mtg = "./mtg2",
-#   tmpdir = str_glue("tmp/tmp_{sel_sample}_{j}"),
-#   nthread = 1, verbose = 1, remove_tmpdir = TRUE
-# )
-
-# j <- 1
-# splmm(unlist(exp[j, ]), distance_kernel, nonsel_celltype_kernel,
-#   path_mtg = "./mtg2",
-#   tmpdir = str_glue("tmp/tmp_{sel_sample}_{j}"),
-#   nthread = 1, verbose = 1, remove_tmpdir = TRUE
-# )
+celltype_kernel %>% h
+apply(std(celltype_mat), 2, mean)
+apply(std(celltype_mat), 2, sd)

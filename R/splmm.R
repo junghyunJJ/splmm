@@ -13,6 +13,8 @@ std <- function(dat) {
     (x - ave) / (sd(x) * sqrt(ncov))
     # (x - ave) / sd(x)
   })
+  cov[is.nan(cov)] <- 0 # we need to handle the NaN value when we use single-cell resoulution model
+
   colnames(cov) <- NULL
   rownames(cov) <- NULL
 
